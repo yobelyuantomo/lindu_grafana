@@ -1,19 +1,15 @@
 version: '3.8'
 
-services:
-  mosquitto:
-    image: eclipse-mosquitto:2
-    container_name: grafana_mosquitto
-    ports:
-      # 1884 di host (bukan 1883) supaya tidak bentrok dengan broker MQTT utama
-      # (lindu_broker) dari docker-compose.yml root, yang juga memetakan 1883.
-      # Komunikasi internal antar container tetap ke port 1883 (nama service
-      # "mosquitto"), jadi ingester tidak perlu diubah.
-      - "1884:1883"
-    command: mosquitto -c /mosquitto-no-auth.conf
-    volumes:
-      - ./mosquitto-no-auth.conf:/mosquitto-no-auth.conf
+# Dipakai supaya ingester bisa ikut satu broker MQTT yang sama dengan stack utama
+# (lindu_broker dari docker-compose.yml root), bukan broker terisolasi sendiri.
+# Nama network ini dibuat otomatis oleh Docker Compose dari nama folder proyek
+# root ("lindu"), jadi stack utama HARUS sudah dijalankan (docker compose up)
+# dari folder bernama "lindu" sebelum stack ini dijalankan.
+networks:
+  lindu_default:
+    external: true
 
+services:
   postgres:
     image: postgres:13
     container_name: grafana_postgres
@@ -27,18 +23,21 @@ services:
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   ingester:
-    build: 
+    build:
       context: ./ingester
       dockerfile: Dockerfile
     container_name: grafana_ingester
     depends_on:
-      - mosquitto
       - postgres
     environment:
-      MQTT_HOST: mosquitto
+      # Broker MQTT utama (lindu_broker), bukan broker terisolasi milik stack ini
+      MQTT_HOST: lindu_broker
       DB_HOST: postgres
     ports:
       - "5001:5000"
+    networks:
+      - default
+      - lindu_default
 
   grafana:
     image: grafana/grafana:latest
