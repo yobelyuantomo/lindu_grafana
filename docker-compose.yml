@@ -27,6 +27,7 @@ services:
       context: ./ingester
       dockerfile: Dockerfile
     container_name: grafana_ingester
+    restart: unless-stopped
     depends_on:
       - postgres
     environment:
