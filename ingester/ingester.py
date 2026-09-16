@@ -43,7 +43,7 @@ def db_writer_thread():
         if local_telemetry:
             try:
                 cursor.executemany(
-                    "INSERT INTO sensor_telemetry (time, node_id, pga, rms, accel_x, accel_y, accel_z, temperature, pressure, humidity, latency_ms, valve_status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    "INSERT INTO sensor_telemetry (time, node_id, pga, rms, accel_x, accel_y, accel_z, temperature, pressure, humidity, latency_ms, valve_status, gas_raw, gas_alert) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                     local_telemetry
                 )
                 conn.commit()
@@ -101,16 +101,18 @@ def on_message(client, userdata, msg):
             press = payload.get("pressure", None)
             hum = payload.get("humidity", None)
             valve = payload.get("valve_status", "UNKNOWN")
-            
-            
+            gas_raw = payload.get("gas_raw", None)
+            gas_alert = payload.get("gas_alert", None)
+
+
             # Calculate Latency (if ESP32 sends its NTP synced epoch timestamp)
             sent_ts = payload.get("ts", payload.get("timestamp", None))
             latency = None
             if sent_ts:
                 latency = (time.time() - sent_ts) * 1000.0 # Convert to milliseconds
-                
+
             with buffer_lock:
-                telemetry_buffer.append((now, node_id, pga, rms, ax, ay, az, temp, press, hum, latency, valve))
+                telemetry_buffer.append((now, node_id, pga, rms, ax, ay, az, temp, press, hum, latency, valve, gas_raw, gas_alert))
             
         elif topic.endswith("/status"):
             node_id = payload.get("node_id", "unknown")
