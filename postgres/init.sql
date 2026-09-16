@@ -10,8 +10,16 @@ CREATE TABLE IF NOT EXISTS sensor_telemetry (
     pressure     DOUBLE PRECISION,
     humidity     DOUBLE PRECISION,
     latency_ms   DOUBLE PRECISION,
-    valve_status VARCHAR(20)
+    valve_status VARCHAR(20),
+    gas_raw      INTEGER,
+    gas_alert    BOOLEAN
 );
+
+-- init.sql hanya jalan sekali saat volume postgres pertama kali dibuat, jadi
+-- kolom baru di atas ditambahkan lagi di sini untuk deployment yang sudah
+-- ada sebelumnya (volume lama tanpa kolom gas).
+ALTER TABLE sensor_telemetry ADD COLUMN IF NOT EXISTS gas_raw INTEGER;
+ALTER TABLE sensor_telemetry ADD COLUMN IF NOT EXISTS gas_alert BOOLEAN;
 
 CREATE TABLE IF NOT EXISTS sensor_status (
     time        TIMESTAMP WITH TIME ZONE NOT NULL,
