@@ -5,7 +5,11 @@ services:
     image: eclipse-mosquitto:2
     container_name: grafana_mosquitto
     ports:
-      - "1883:1883"
+      # 1884 di host (bukan 1883) supaya tidak bentrok dengan broker MQTT utama
+      # (lindu_broker) dari docker-compose.yml root, yang juga memetakan 1883.
+      # Komunikasi internal antar container tetap ke port 1883 (nama service
+      # "mosquitto"), jadi ingester tidak perlu diubah.
+      - "1884:1883"
     command: mosquitto -c /mosquitto-no-auth.conf
     volumes:
       - ./mosquitto-no-auth.conf:/mosquitto-no-auth.conf
