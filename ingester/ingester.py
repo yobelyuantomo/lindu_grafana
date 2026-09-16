@@ -175,6 +175,30 @@ def send_cmd():
             payload["lon"] = float(data.get("lon", 0.0))
         elif cmd == "set_broker":
             payload["server"] = data.get("server", "192.168.68.105")
+        elif cmd == "simulate_quake":
+            # Tombol debugging: memicu alarm gempa PENUH (siren fisik di node +
+            # banner di dashboard) tanpa perlu 2 node fisik untuk saling
+            # konfirmasi. Node simulasi & magnitudo dibuat sintetis.
+            epi_lat = float(data.get("lat") or -6.2018)
+            epi_lon = float(data.get("lon") or 106.7823)
+            magnitude = float(data.get("magnitude") or 6.5)
+            payload = {
+                "cmd": "trigger_siren",
+                "level": "CRITICAL",
+                "epicenter_lat": epi_lat,
+                "epicenter_lon": epi_lon,
+                "radius_km": round(10 ** (0.5 * magnitude - 1.0), 1),
+                "confidence": 95,
+                "magnitude": magnitude,
+                "measured_velocity_kms": 7.2,
+                "time_diff_s": 1.1,
+                "bypass": True,
+                "triggering_nodes": [
+                    {"id": "SIMULATED_NODE_1", "lat": epi_lat + 0.01, "lon": epi_lon - 0.01, "pga": 0.55},
+                    {"id": "SIMULATED_NODE_2", "lat": epi_lat - 0.01, "lon": epi_lon + 0.01, "pga": 0.48}
+                ],
+                "desc": f"🧪 SIMULASI Gempa M{magnitude} (dipicu manual dari Grafana untuk keperluan testing/debugging, tanpa 2 node fisik)."
+            }
         client.publish("lindu/actuator/cmd/all", json.dumps(payload))
         return jsonify({"status": "success"})
     except Exception as e:
