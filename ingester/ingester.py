@@ -54,7 +54,7 @@ def db_writer_thread():
         if local_status:
             try:
                 cursor.executemany(
-                    "INSERT INTO sensor_status (time, node_id, status, pose, tilt_angle, latency_ms, sensor_ok, fw_version, ota_status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    "INSERT INTO sensor_status (time, node_id, status, pose, tilt_angle, latency_ms, sensor_ok, fw_version, ota_status, motion_detected) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                     local_status
                 )
                 conn.commit()
@@ -130,12 +130,13 @@ def on_message(client, userdata, msg):
             sensor_ok = payload.get("sensor_ok", False)
             fw_version = payload.get("fw_version", "UNKNOWN")
             ota_status = payload.get("ota_status", "IDLE")
+            motion_detected = payload.get("motion_detected", None)
 
             lat = payload.get("lat", None)
             lon = payload.get("lon", None)
 
             with buffer_lock:
-                status_buffer.append((now, node_id, status, pose, tilt, latency, sensor_ok, fw_version, ota_status))
+                status_buffer.append((now, node_id, status, pose, tilt, latency, sensor_ok, fw_version, ota_status, motion_detected))
                 if lat is not None and lon is not None and (lat != 0.0 or lon != 0.0):
                     node_location_buffer[node_id] = (lat, lon, now)
     except Exception as e:
