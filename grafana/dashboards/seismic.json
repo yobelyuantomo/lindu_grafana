@@ -679,6 +679,151 @@
       }
     },
     {
+      "type": "stat",
+      "title": "\ud83d\udeb6 PIR Motion (Terkini)",
+      "id": 24,
+      "gridPos": {
+        "w": 6,
+        "h": 6,
+        "x": 12,
+        "y": 41
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "lindu_pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT DISTINCT ON (node_id) node_id, time, CASE WHEN motion_detected THEN 'TERDETEKSI' ELSE 'TIDAK ADA GERAKAN' END AS status FROM sensor_status WHERE node_id IN ($node_id) AND motion_detected IS NOT NULL ORDER BY node_id, time DESC",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "lindu_pg"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "TERDETEKSI": {
+                  "text": "\ud83d\udfe2 TERDETEKSI",
+                  "color": "green",
+                  "index": 1
+                },
+                "TIDAK ADA GERAKAN": {
+                  "text": "\u26aa TIDAK ADA GERAKAN",
+                  "color": "text",
+                  "index": 0
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "time"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "node_id"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "values": true,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^status$/"
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "type": "state-timeline",
+      "title": "\ud83d\udeb6 Riwayat Deteksi PIR",
+      "id": 25,
+      "gridPos": {
+        "w": 6,
+        "h": 6,
+        "x": 18,
+        "y": 41
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "lindu_pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawSql": "SELECT time AS \"time\", node_id AS \"metric\", CASE WHEN motion_detected THEN 'Gerakan' ELSE 'Diam' END AS \"PIR\" FROM sensor_status WHERE node_id IN ($node_id) AND motion_detected IS NOT NULL AND time > NOW() - INTERVAL '15 minutes' ORDER BY time ASC",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "lindu_pg"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byValue",
+              "options": {
+                "value": "Gerakan"
+              }
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showValue": "never",
+        "mergeValues": true
+      }
+    },
+    {
       "type": "timeseries",
       "title": "\ud83d\udca8 Konsentrasi Gas (MQ-2)",
       "gridPos": {
