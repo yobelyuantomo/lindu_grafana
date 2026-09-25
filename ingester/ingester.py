@@ -43,7 +43,7 @@ def db_writer_thread():
         if local_telemetry:
             try:
                 cursor.executemany(
-                    "INSERT INTO sensor_telemetry (time, node_id, pga, rms, accel_x, accel_y, accel_z, temperature, pressure, humidity, latency_ms, valve_status, gas_raw, gas_alert) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    "INSERT INTO sensor_telemetry (time, node_id, pga, rms, accel_x, accel_y, accel_z, temperature, pressure, humidity, latency_ms, valve_status, gas_raw, gas_alert, freq_hz, sensor_ts) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                     local_telemetry
                 )
                 conn.commit()
@@ -104,6 +104,11 @@ def on_message(client, userdata, msg):
             gas_raw = payload.get("gas_raw", None)
             gas_alert = payload.get("gas_alert", None)
 
+            # Fitur wajib dataset ML. Sengaja None (bukan 0) kalau node tidak
+            # mengirimnya, supaya baris tanpa frekuensi bisa dibuang saat ekspor
+            # dataset alih-alih diam-diam dianggap 0 Hz.
+            freq_hz = payload.get("freq_hz", None)
+
 
             # Calculate Latency (if ESP32 sends its NTP synced epoch timestamp)
             sent_ts = payload.get("ts", payload.get("timestamp", None))
@@ -112,7 +117,7 @@ def on_message(client, userdata, msg):
                 latency = (time.time() - sent_ts) * 1000.0 # Convert to milliseconds
 
             with buffer_lock:
-                telemetry_buffer.append((now, node_id, pga, rms, ax, ay, az, temp, press, hum, latency, valve, gas_raw, gas_alert))
+                telemetry_buffer.append((now, node_id, pga, rms, ax, ay, az, temp, press, hum, latency, valve, gas_raw, gas_alert, freq_hz, sent_ts))
             
         elif topic.endswith("/status"):
             node_id = payload.get("node_id", "unknown")
