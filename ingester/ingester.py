@@ -17,8 +17,28 @@ DB_PASS = os.getenv("DB_PASS", "postgres")
 DB_NAME = os.getenv("DB_NAME", "lindu_db")
 
 time.sleep(5)
-conn = psycopg2.connect(host=DB_HOST, user=DB_USER, password=DB_PASS, dbname=DB_NAME)
-conn.autocommit = False
+
+
+def connect_db():
+    """Buka koneksi baru ke PostgreSQL, mencoba terus sampai berhasil.
+
+    Dipakai saat startup maupun saat koneksi mati di tengah jalan. Tanpa ini,
+    container Postgres yang di-restart membuat ingester berhenti menulis
+    SELAMANYA sementara MQTT tetap diterima — kegagalan yang sama sekali tidak
+    terlihat dari log maupun dari status container.
+    """
+    while True:
+        try:
+            c = psycopg2.connect(host=DB_HOST, user=DB_USER, password=DB_PASS, dbname=DB_NAME)
+            c.autocommit = False
+            print("[DB] Terhubung ke PostgreSQL", flush=True)
+            return c
+        except Exception as e:
+            print(f"[DB] Gagal konek ({e}); mencoba lagi dalam 3 detik", flush=True)
+            time.sleep(3)
+
+
+conn = connect_db()
 cursor = conn.cursor()
 
 # Buffer antrean untuk Batch Insert (Sangat Efisien)
@@ -26,6 +46,34 @@ telemetry_buffer = []
 status_buffer = []
 node_location_buffer = {}  # node_id -> (lat, lon, updated_at); dict agar hanya simpan lokasi terbaru per node
 buffer_lock = threading.Lock()
+
+def reconnect():
+    """Bangun ulang koneksi dan cursor setelah kegagalan."""
+    global conn, cursor
+    try:
+        conn.close()
+    except Exception:
+        pass
+    conn = connect_db()
+    cursor = conn.cursor()
+
+
+def safe_rollback():
+    """Rollback yang tidak pernah melempar.
+
+    conn.rollback() pada koneksi yang sudah mati ikut melempar, keluar dari
+    blok except, dan MEMBUNUH thread penulis ini. Setelah itu pesan MQTT tetap
+    diterima tetapi tidak ada satu pun yang tersimpan, tanpa error apa pun di
+    log. Itulah yang benar-benar terjadi saat container Postgres di-restart.
+
+    Mengembalikan True bila koneksi masih sehat.
+    """
+    try:
+        conn.rollback()
+        return True
+    except Exception:
+        return False
+
 
 def db_writer_thread():
     global telemetry_buffer, status_buffer, node_location_buffer
@@ -48,8 +96,9 @@ def db_writer_thread():
                 )
                 conn.commit()
             except Exception as e:
-                print(f"Error Batch Telemetry: {e}")
-                conn.rollback()
+                print(f"Error Batch Telemetry: {e}", flush=True)
+                if not safe_rollback():
+                    reconnect()
                 
         if local_status:
             try:
@@ -59,8 +108,9 @@ def db_writer_thread():
                 )
                 conn.commit()
             except Exception as e:
-                print(f"Error Batch Status: {e}")
-                conn.rollback()
+                print(f"Error Batch Status: {e}", flush=True)
+                if not safe_rollback():
+                    reconnect()
 
         if local_locations:
             try:
@@ -71,8 +121,9 @@ def db_writer_thread():
                 )
                 conn.commit()
             except Exception as e:
-                print(f"Error Batch Node Location: {e}")
-                conn.rollback()
+                print(f"Error Batch Node Location: {e}", flush=True)
+                if not safe_rollback():
+                    reconnect()
 
 threading.Thread(target=db_writer_thread, daemon=True).start()
 

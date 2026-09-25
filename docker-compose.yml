@@ -21,6 +21,14 @@ services:
       - "5433:5432"
     volumes:
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    # Ikut network bersama supaya lindu_consensus (yang berjalan di stack root)
+    # bisa menjangkau database ini. consensus.py menulis tb_sensor_telemetry,
+    # tb_system_alerts, dan tb_ml_predictions ke sini, dan seluruh panel Grafana
+    # membacanya dari sini juga (datasource lindu_pg -> postgres:5432).
+    # Tanpa ini consensus hidup tetapi tidak pernah bisa menyimpan apa pun.
+    networks:
+      - default
+      - lindu_default
 
   ingester:
     build:
