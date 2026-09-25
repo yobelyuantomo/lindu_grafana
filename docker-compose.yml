@@ -9,6 +9,9 @@ networks:
   lindu_default:
     external: true
 
+volumes:
+  pgdata:
+
 services:
   postgres:
     image: postgres:13
@@ -20,6 +23,12 @@ services:
     ports:
       - "5433:5432"
     volumes:
+      # Named volume, BUKAN anonymous. Tanpa deklarasi ini Docker membuat
+      # anonymous volume yang namanya acak: ia selamat dari `up -d` biasa,
+      # tetapi ikut terhapus oleh `docker compose down -v` dan gampang menjadi
+      # yatim tanpa ada yang tahu isinya apa. Seluruh data seismik historis
+      # ada di sini, dan sekali hilang tidak bisa direkam ulang.
+      - pgdata:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     # Ikut network bersama supaya lindu_consensus (yang berjalan di stack root)
     # bisa menjangkau database ini. consensus.py menulis tb_sensor_telemetry,
