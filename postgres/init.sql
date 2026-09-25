@@ -12,7 +12,9 @@ CREATE TABLE IF NOT EXISTS sensor_telemetry (
     latency_ms   DOUBLE PRECISION,
     valve_status VARCHAR(20),
     gas_raw      INTEGER,
-    gas_alert    BOOLEAN
+    gas_alert    BOOLEAN,
+    freq_hz      INTEGER,
+    sensor_ts    DOUBLE PRECISION
 );
 
 -- init.sql hanya jalan sekali saat volume postgres pertama kali dibuat, jadi
@@ -20,6 +22,15 @@ CREATE TABLE IF NOT EXISTS sensor_telemetry (
 -- ada sebelumnya (volume lama tanpa kolom gas).
 ALTER TABLE sensor_telemetry ADD COLUMN IF NOT EXISTS gas_raw INTEGER;
 ALTER TABLE sensor_telemetry ADD COLUMN IF NOT EXISTS gas_alert BOOLEAN;
+
+-- freq_hz dan sensor_ts dipakai sebagai fitur dataset ML (Assignment 3).
+-- freq_hz sebelumnya hanya tersimpan di tb_sensor_telemetry, dan itu pun hanya
+-- untuk baris yang sudah lolos filter rule-based — sehingga kelas negatif
+-- (getaran non-gempa) tidak pernah punya nilai frekuensi sama sekali.
+-- sensor_ts menyimpan epoch asli dari node; kolom `time` adalah waktu terima
+-- di server, yang tidak cukup presisi untuk menyusun jendela sinyal 1-2 detik.
+ALTER TABLE sensor_telemetry ADD COLUMN IF NOT EXISTS freq_hz INTEGER;
+ALTER TABLE sensor_telemetry ADD COLUMN IF NOT EXISTS sensor_ts DOUBLE PRECISION;
 
 CREATE TABLE IF NOT EXISTS sensor_status (
     time            TIMESTAMP WITH TIME ZONE NOT NULL,
