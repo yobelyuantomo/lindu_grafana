@@ -1075,6 +1075,191 @@
       "options": {
         "showHeader": true
       }
+    },
+    {
+      "id": 40,
+      "type": "row",
+      "title": "Level 2 - Kesehatan Model & Kapabilitas Lanjutan",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 104
+      }
+    },
+    {
+      "id": 41,
+      "type": "table",
+      "title": "[ML] Kesehatan Model",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "lindu_pg"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 105
+      },
+      "description": "Versi model aktif, latensi inferensi, status shadow mode, dan berapa kali anggaran latensi terlampaui. Latensi yang naik terus menandakan server kewalahan; peringatan dini yang terlambat tidak ada gunanya.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "lindu_pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  model_version                                        AS \"Versi Model\",\n  COUNT(*)                                             AS \"Prediksi\",\n  ROUND(AVG(latency_ms)::numeric, 2)                   AS \"Latensi Rata (ms)\",\n  ROUND(MAX(latency_ms)::numeric, 2)                   AS \"Latensi Maks (ms)\",\n  COUNT(*) FILTER (WHERE over_budget)                  AS \"Lewat Anggaran\",\n  BOOL_OR(shadow_mode)                                 AS \"Shadow Mode\",\n  MAX(ts)                                              AS \"Terakhir\"\nFROM tb_ml_predictions\nWHERE $__timeFilter(ts)\nGROUP BY model_version\nORDER BY MAX(ts) DESC;",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "id": 42,
+      "type": "timeseries",
+      "title": "[ML] Latensi Inferensi",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "lindu_pg"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 105
+      },
+      "description": "Anggaran latensi 50 ms. Di atas garis itu hasil ML diabaikan oleh pengambil keputusan, dan sistem memakai rule-based saja.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "lindu_pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT ts AS \"time\", node_id AS \"metric\", latency_ms AS \"Latensi (ms)\"\nFROM tb_ml_predictions\nWHERE node_id IN ($node_id) AND $__timeFilter(ts) AND latency_ms IS NOT NULL\nORDER BY ts ASC;",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "fillOpacity": 5
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 43,
+      "type": "timeseries",
+      "title": "[ML] Skor Anomali per Node",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "lindu_pg"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 111
+      },
+      "description": "Skor tinggi = pola di luar kebiasaan node ini. Anomali yang bertahan lama pada satu node saja lebih mungkin berarti sensor bermasalah atau pemasangan bergeser, bukan kejadian seismik. Terisi setelah model anomali di-deploy.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "lindu_pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT ts AS \"time\", node_id AS \"metric\", anomaly_score AS \"Skor Anomali\"\nFROM tb_ml_predictions\nWHERE node_id IN ($node_id) AND $__timeFilter(ts) AND anomaly_score IS NOT NULL\nORDER BY ts ASC;",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 44,
+      "type": "timeseries",
+      "title": "[ML] Estimasi Lead-Time (detik)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "lindu_pg"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 111
+      },
+      "description": "Perkiraan sisa waktu sebelum puncak guncangan tiba. Di bawah 5 detik, kebijakan aktuator langsung naik ke BAHAYA berapa pun keyakinan model. Terisi setelah model lead-time di-deploy.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "lindu_pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT ts AS \"time\", node_id AS \"metric\", lead_time_pred AS \"Lead-Time (s)\"\nFROM tb_ml_predictions\nWHERE node_id IN ($node_id) AND $__timeFilter(ts) AND lead_time_pred IS NOT NULL\nORDER BY ts ASC;",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
     }
   ],
   "refresh": "5s",
